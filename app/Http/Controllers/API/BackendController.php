@@ -1,0 +1,111 @@
+<?php
+
+namespace App\Http\Controllers\API;
+
+use Carbon\Carbon;
+use App\Models\Emi;
+use App\Models\User;
+use App\Mail\LoanDetails;
+use App\Models\Application;
+use Illuminate\Http\Request;
+use App\Http\Resources\LoanDetailResource;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+
+class BackendController extends Controller
+{
+    public function getLoanRequest() {
+        $loans = Application::select('id','loan_amount','num_of_emis','user_id','status')->with('user:id,name,email')->get();
+        /* $loans = Application::select('id','loan_amount','num_of_emis','user_id')->with(array('user' => function($query)
+        {
+            $query->select('id','name','email');
+        
+        }))->where('status',0)->get()->toArray(); */
+        return LoanDetailResource::collection($loans);
+    }
+
+    public function updateLoanStatus(Request $request){
+        $payload = $request->json()->all();
+
+        $required = [
+            'status' => ['required'],
+            'loan_application_id' => ['required'],
+        ];
+
+        if($payload['status'] == 2){
+            $required['reject_reason'] = 'required';
+        }
+
+        $validator = Validator::make($payload, $required);
+ 
+        if ($validator->fails()) {
+            return response()->json(['status' => 201, "data" => $validator->messages() ]);
+        }
+
+        try {
+            $loanApplication = Application::select('id','loan_amount','num_of_emis','user_id')->where('id',$payload['loan_application_id'])->with('user:id,name,email')->first();
+            
+            $loanApplication->status = $payload['status'];
+            if($payload['status'] == 2){
+                $loanApplication->reject_reason = $payload['reject_reason'];
+            }
+
+            $loanApplication->save();
+
+            if($payload['status']==1) {
+                $tenure = $loanApplication->num_of_emis;
+                $loan_amount = $loanApplication->loan_amount;
+                $interest = 10;
+                $amountWithInterest = $loan_amount + (($loan_amount*$interest)/100);
+                
+                $emi = $loan_amount / $tenure;
+                for ($i=1; $i <=$tenure ; $i++) { 
+    
+                    $interestAmount = ($emi / $interest);
+                    $remaining = $amountWithInterest - $emi - $interestAmount;
+                    $amountWithInterest = $remaining;
+    
+                    $emiDetails = [
+                        'application_id' => $loanApplication->id,
+                        'emi_number' => $i,
+                        'emi_amount' => number_format($emi,2,'.',''),
+                        'rate_of_interest' => number_format($interestAmount,2, '.',''),
+                        'remaining_amount' => number_format($remaining,2,'.',''),
+                        'status' => 0,
+                    ];
+   
+                    Emi::insert($emiDetails);
+                }
+                
+                $res = Emi::selectRaw('(remaining_amount+emi_amount+rate_of_interest) as outstanding')->where('application_id',$payload['loan_application_id'])->where('status',0)->orderby('id','ASC')->get()->first();
+                $outstanding = $res->outstanding;
+
+                $data['name'] = "Saurabh";
+                $data['emis'] = [
+                    'creation_date' => Carbon::parse($loanApplication->updated_at)->format('d M Y'),
+                    'finish_date' => Carbon::parse($loanApplication->updated_at)->addMonths($loanApplication->num_of_emis)->format('d M Y'),
+                    'total_emis' => $tenure,
+                    'loan_amount' => number_format($loan_amount,2, '.',''),
+                    'pending_emis' => Emi::where('application_id',$payload['loan_application_id'])->where('status',0)->count(),
+                    'outstanding_amount' => number_format($outstanding,2, '.',''),
+                    'monthly_emi_amount' => number_format($emi,2, '.','')
+                ];
+            }
+
+            Mail::to($loanApplication->user->email,$loanApplication->user->name)->queue(new LoanDetails($data));
+
+            $response = [
+                'success' => true,
+                'message' => "Loan Status updated successfully."
+            ];
+            return response()->json($response, 200);
+        } catch (\Illuminate\Database\QueryException $ex) {
+            $response = [
+                'success' => false,
+                'message' => $ex->getMessage()
+            ];
+            return response()->json($response, 201);
+        } 
+    }
+}

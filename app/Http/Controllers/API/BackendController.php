@@ -8,10 +8,11 @@ use App\Models\User;
 use App\Mail\LoanDetails;
 use App\Models\Application;
 use Illuminate\Http\Request;
-use App\Http\Resources\LoanDetailResource;
+use App\Http\Resources\Common;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Resources\LoanDetailResource;
 
 class BackendController extends Controller
 {
@@ -38,7 +39,7 @@ class BackendController extends Controller
             'loan_application_id' => ['required'],
         ];
 
-        if($payload['status'] == 2){
+        if($payload['status'] && $payload['status'] == 2){
             $required['reject_reason'] = 'required';
         }
 

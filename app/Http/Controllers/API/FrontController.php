@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use App\Http\Resources\Common;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\PaymentRequest;
+use App\Http\Requests\ApplicationRequest;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Resources\LoanDetailResource;
 use App\Http\Resources\TransactionHistory;
@@ -18,17 +20,6 @@ class FrontController extends Controller
 {
 
     public function getAllLoanRequest() {
-
-        /* Wokring as expected, returning all loan applications with their emi details of logged in user */
-        /* $user = User::select('id')->where('id', Auth()->user()->id);
-        $user = $user->with('application.emi')->get()->toArray();
-        dd($user); */
-
-        /* Retuning all users with their all loan applications and their emi details */
-        /* $applications = Auth::user()->with('application.emi')->get()->toArray();
-        dd($applications); */
-
-        /* Working as expected */
         $applications = Auth::user()->application()->get();
         $response = [
             'status' => true,
@@ -38,22 +29,8 @@ class FrontController extends Controller
         return Common::collection([collect($response)]);
     }
 
-    public function loan_request(Request $request) {
+    public function loan_request(ApplicationRequest $request) {
         $payload = $request->json()->all();
-
-        $validator = Validator::make($payload, [
-            'loan_amount' => ['required','gte:500000','lte:5000000'],
-            'num_of_emis' => ['required', 'gte:24','lte:60'],
-        ]);
- 
-        if ($validator->fails()) {
-            $response = [
-                'status' => false,
-                'message' => 'Validation Error',
-                'data' => $validator->messages()
-            ];
-            return Common::collection([collect($response)]);
-        }
 
         try {
             $res = Application::create([
@@ -76,23 +53,8 @@ class FrontController extends Controller
         }
     }
 
-    public function payment(Request $request){
+    public function payment(PaymentRequest $request){
         $payload = $request->json()->all();
-
-        $validator = Validator::make($payload, [
-            'application_id' => ['required'],
-            'emi_id' => ['required'],
-            'payment_status' => ['required'],
-        ]);
- 
-        if ($validator->fails()) {
-            $response = [
-                'status' => false,
-                'message' => 'Validation Error',
-                'data' => $validator->messages()
-            ];
-            return Common::collection([collect($response)]);
-        }
 
         try {
             $emi = Emi::where('id', $payload['emi_id'])->first();

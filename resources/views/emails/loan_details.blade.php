@@ -6,7 +6,8 @@
     <title>{{env('APP_NAME')}}</title>
 </head>
 <body>
-    <p>Hello {{$name}}</p>
+    <p>Hello {{$name}},</p>
+    @if(count($emis))
     <p>Congrats!!!</p> 
     <p>Your loan request has been approved, following are the EMI details:</p>
     <table border="1" cellspacing="2" cellpadding="10">
@@ -33,5 +34,8 @@
             </tr>
         </tbody>
     </table>
+    @else
+    <p>Sorry to inform you that your loan request has been rejected due to reason : {{$reject_reason}}</p>
+    @endif
 </body>
 </html>

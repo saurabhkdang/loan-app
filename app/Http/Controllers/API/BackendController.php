@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use App\Http\Resources\Common;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Mail;
+use App\Http\Requests\LoanUpdateRequest;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Resources\LoanDetailResource;
 
@@ -18,11 +19,6 @@ class BackendController extends Controller
 {
     public function getLoanRequest() {
         $loans = Application::select('id','loan_amount','num_of_emis','user_id','status')->with('user:id,name,email')->get();
-        /* $loans = Application::select('id','loan_amount','num_of_emis','user_id')->with(array('user' => function($query)
-        {
-            $query->select('id','name','email');
-        
-        }))->where('status',0)->get()->toArray(); */
         $response = [
             'status' => true,
             'message' => '',
@@ -31,10 +27,10 @@ class BackendController extends Controller
         return Common::collection([collect($response)]);
     }
 
-    public function updateLoanStatus(Request $request){
+    public function updateLoanStatus(LoanUpdateRequest $request){
         $payload = $request->json()->all();
 
-        $required = [
+        /* $required = [
             'status' => ['required'],
             'loan_application_id' => ['required'],
         ];
@@ -52,7 +48,7 @@ class BackendController extends Controller
                 'data' => $validator->messages()
             ];
             return Common::collection([collect($response)]);
-        }
+        } */
 
         try {
             $loanApplication = Application::select('id','loan_amount','num_of_emis','user_id')->where('id',$payload['loan_application_id'])->with('user:id,name,email')->first();
@@ -63,7 +59,9 @@ class BackendController extends Controller
             }
 
             $loanApplication->save();
-
+            $data = [];
+            $data['emis'] = [];
+            $data['name'] = $loanApplication->user->name;
             if($payload['status']==1) {
                 $tenure = $loanApplication->num_of_emis;
                 $loan_amount = $loanApplication->loan_amount;
@@ -92,7 +90,6 @@ class BackendController extends Controller
                 $res = Emi::selectRaw('(remaining_amount+emi_amount+rate_of_interest) as outstanding')->where('application_id',$payload['loan_application_id'])->where('status',0)->orderby('id','ASC')->get()->first();
                 $outstanding = $res->outstanding;
 
-                $data['name'] = "Saurabh";
                 $data['emis'] = [
                     'creation_date' => Carbon::parse($loanApplication->updated_at)->format('d M Y'),
                     'finish_date' => Carbon::parse($loanApplication->updated_at)->addMonths($loanApplication->num_of_emis)->format('d M Y'),
@@ -102,8 +99,10 @@ class BackendController extends Controller
                     'outstanding_amount' => number_format($outstanding,2, '.',''),
                     'monthly_emi_amount' => number_format($emi,2, '.','')
                 ];
+            } else {
+                $data['reject_reason'] = $loanApplication->reject_reason;
             }
-
+            
             Mail::to($loanApplication->user->email,$loanApplication->user->name)->queue(new LoanDetails($data));
 
             $response = [

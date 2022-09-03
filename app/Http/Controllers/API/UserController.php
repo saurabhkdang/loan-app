@@ -30,7 +30,7 @@ class UserController extends Controller
                 'message' => 'Validation Error',
                 'data' => $validator->messages()
             ];
-            return Common::collection( json_encode($response));
+            return Common::collection([collect($response)]);
             //return response()->json(['status' => 403, "data" => $validator->messages() ]);
         }
 
@@ -44,14 +44,13 @@ class UserController extends Controller
                 'status' => true,
                 'message' => 'User has been registered successfully.'
             ];
-            return Common::collection($response);
-            //return response()->json(['status' => 200, "message" => "User has been registered successfully."]);
+            return Common::collection([collect($response)]);
         } catch (\Illuminate\Database\QueryException $ex) {
             $response = [
-                'success' => false,
+                'status' => false,
                 'message' => $ex->getMessage()
             ];
-            return response()->json($response, 201);
+            return Common::collection([collect($response)]);
         } 
     }
 
@@ -64,22 +63,32 @@ class UserController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['status' => 403, "data" => $validator->messages() ]);
+            $response = [
+                'status' => false,
+                'message' => 'Validation Error',
+                'data' => $validator->messages()
+            ];
+            return Common::collection([collect($response)]);
         }
 
         if(Auth::attempt(['email' => $payload['email'], 'password' => $payload['password']])){
             $response = [
-                'success' => true,
-                'message' => "Use this token for further API calls",
-                'token' => $request->user()->createToken('loan_app')->plainTextToken
+                'status' => true,
+                'message' => 'Use this token for further API calls',
+                'data' => ['token' => $request->user()->createToken('loan_app')->plainTextToken]
             ];
-            return response()->json($response, 200);
+            return Common::collection([collect($response)]);
         }else{
             $response = [
                 'success' => false,
                 'message' => "Invalid credentials"
             ];
             return response()->json($response, 201);
+            $response = [
+                'status' => faslse,
+                'message' => 'Invalid credentials',
+            ];
+            return Common::collection([collect($response)]);
         }
     }
 

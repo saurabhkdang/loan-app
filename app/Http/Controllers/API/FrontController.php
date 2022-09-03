@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Application;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use App\Http\Resources\Common;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -29,7 +30,12 @@ class FrontController extends Controller
 
         /* Working as expected */
         $applications = Auth::user()->application()->get();
-        return LoanDetailResource::collection($applications);
+        $response = [
+            'status' => true,
+            'message' => '',
+            'data' => LoanDetailResource::collection($applications)
+        ];
+        return Common::collection([collect($response)]);
     }
 
     public function loan_request(Request $request) {
@@ -41,19 +47,32 @@ class FrontController extends Controller
         ]);
  
         if ($validator->fails()) {
-            return response()->json(['status' => 201, "data" => $validator->messages() ]);
+            $response = [
+                'status' => false,
+                'message' => 'Validation Error',
+                'data' => $validator->messages()
+            ];
+            return Common::collection([collect($response)]);
         }
-       
-        $res = Application::create([
-            'user_id' => request()->user()->id,
-            'loan_amount' => $payload['loan_amount'],
-            'num_of_emis' => $payload['num_of_emis']
-        ]);
 
-        if($res) {
-            return response()->json(['status' => 200, "message" => "Loan request has been submitted successfully.", 'data'=>$res]);
-        }else{
-            return response()->json(['status' => 201, "message" => "Error occured while submitting, please try again later."]);
+        try {
+            $res = Application::create([
+                'user_id' => request()->user()->id,
+                'loan_amount' => $payload['loan_amount'],
+                'num_of_emis' => $payload['num_of_emis']
+            ]);
+            $response = [
+                'status' => true,
+                'message' => 'Loan request has been submitted successfully.',
+                'data' => $res
+            ];
+            return Common::collection([collect($response)]);
+        } catch (\Illuminate\Database\QueryException $ex) {
+            $response = [
+                'status' => false,
+                'message' => $ex->getMessage()
+            ];
+            return Common::collection([collect($response)]);
         }
     }
 
@@ -67,10 +86,14 @@ class FrontController extends Controller
         ]);
  
         if ($validator->fails()) {
-            return response()->json(['status' => 403, "data" => $validator->messages() ]);
+            $response = [
+                'status' => false,
+                'message' => 'Validation Error',
+                'data' => $validator->messages()
+            ];
+            return Common::collection([collect($response)]);
         }
 
-        
         try {
             $emi = Emi::where('id', $payload['emi_id'])->first();
             $emi->status = $payload['payment_status'];
@@ -78,22 +101,28 @@ class FrontController extends Controller
             //Emi::where('application_id', $payload['application_id'])->where('id', $payload['emi_id'])->update(['status'=> $payload['payment_status']]);
             $payload['amount'] = ($emi->emi_amount + $emi->rate_of_interest);
             Transaction::create($payload);
+
             $response = [
-                'success' => true,
-                'message' => ($payload['payment_status']?"Payment has been done successfully.":"Something went wrong. Please try again later.")
+                'status' => true,
+                'message' => ($payload['payment_status']?"Payment has been done successfully.":"Something went wrong. Please try again later."),
             ];
-            return response()->json($response, 200);
+            return Common::collection([collect($response)]);
         } catch (\Illuminate\Database\QueryException $ex) {
             $response = [
-                'success' => false,
+                'status' => false,
                 'message' => $ex->getMessage()
             ];
-            return response()->json($response, 201);
+            return Common::collection([collect($response)]);
         } 
     }
 
     public function transaction_history(){
         $applications = Auth::user()->application()->get();
-        return TransactionHistory::collection($applications);
+        $response = [
+            'status' => true,
+            'message' => '',
+            'data' => TransactionHistory::collection($applications)
+        ];
+        return Common::collection([collect($response)]);
     }
 }

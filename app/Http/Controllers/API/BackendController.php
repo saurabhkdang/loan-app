@@ -22,7 +22,12 @@ class BackendController extends Controller
             $query->select('id','name','email');
         
         }))->where('status',0)->get()->toArray(); */
-        return LoanDetailResource::collection($loans);
+        $response = [
+            'status' => true,
+            'message' => '',
+            'data' => LoanDetailResource::collection($loans)
+        ];
+        return Common::collection([collect($response)]);
     }
 
     public function updateLoanStatus(Request $request){
@@ -40,7 +45,12 @@ class BackendController extends Controller
         $validator = Validator::make($payload, $required);
  
         if ($validator->fails()) {
-            return response()->json(['status' => 201, "data" => $validator->messages() ]);
+            $response = [
+                'status' => false,
+                'message' => 'Validation Error',
+                'data' => $validator->messages()
+            ];
+            return Common::collection([collect($response)]);
         }
 
         try {
@@ -96,16 +106,16 @@ class BackendController extends Controller
             Mail::to($loanApplication->user->email,$loanApplication->user->name)->queue(new LoanDetails($data));
 
             $response = [
-                'success' => true,
-                'message' => "Loan Status updated successfully."
+                'status' => true,
+                'message' => 'Loan Status updated successfully.',
             ];
-            return response()->json($response, 200);
+            return Common::collection([collect($response)]);
         } catch (\Illuminate\Database\QueryException $ex) {
             $response = [
-                'success' => false,
+                'status' => false,
                 'message' => $ex->getMessage()
             ];
-            return response()->json($response, 201);
+            return Common::collection([collect($response)]);
         } 
     }
 }

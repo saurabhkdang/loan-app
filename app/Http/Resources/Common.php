@@ -15,9 +15,9 @@ class Common extends JsonResource
     public function toArray($request)
     {
         return [
-            'status' => ($this->status)?$this->status:true,
-            'message' => ($this->message)?$this->message:"",
-            'data' => ($this->data)?$this->data:[]
+            'status' => ($this['status'])??true,
+            'message' => ($this['message'])??"",
+            'data' => ($this['data'])??[]
         ];
     }
 }

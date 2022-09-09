@@ -15,8 +15,4 @@ class Transaction extends Model
         'amount',
         'payment_status'
     ];
-
-    /* public function application(){
-        return $this->hasOne(Application::class,'id','application_id');
-    } */
 }

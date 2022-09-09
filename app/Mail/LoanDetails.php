@@ -12,14 +12,16 @@ class LoanDetails extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public $data = [];
+    public $pdfName;
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($data)
+    public function __construct($data, $pdfName)
     {
         $this->data = $data;
+        $this->pdfName = $pdfName;
     }
 
     /**
@@ -29,7 +31,15 @@ class LoanDetails extends Mailable implements ShouldQueue
      */
     public function build()
     {
-        return $this->view('emails.loan_details')
+        $return = $this->view('emails.loan_details')
         ->with($this->data);
+
+        if($this->pdfName!='')
+        $return->attach($this->pdfName, [
+            'as' => 'name.pdf',
+            'mime' => 'application/pdf',
+        ]);
+
+        return $return;
     }
 }

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Http\Requests\LoanUpdateRequest;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Resources\LoanDetailResource;
+use PDF;
 
 class BackendController extends Controller
 {
@@ -30,26 +31,6 @@ class BackendController extends Controller
     public function updateLoanStatus(LoanUpdateRequest $request){
         $payload = $request->json()->all();
 
-        /* $required = [
-            'status' => ['required'],
-            'loan_application_id' => ['required'],
-        ];
-
-        if($payload['status'] && $payload['status'] == 2){
-            $required['reject_reason'] = 'required';
-        }
-
-        $validator = Validator::make($payload, $required);
- 
-        if ($validator->fails()) {
-            $response = [
-                'status' => false,
-                'message' => 'Validation Error',
-                'data' => $validator->messages()
-            ];
-            return Common::collection([collect($response)]);
-        } */
-
         try {
             $loanApplication = Application::select('id','loan_amount','num_of_emis','user_id')->where('id',$payload['loan_application_id'])->with('user:id,name,email')->first();
             
@@ -62,6 +43,7 @@ class BackendController extends Controller
             $data = [];
             $data['emis'] = [];
             $data['name'] = $loanApplication->user->name;
+            $pdfName = '';
             if($payload['status']==1) {
                 $tenure = $loanApplication->num_of_emis;
                 $loan_amount = $loanApplication->loan_amount;
@@ -84,7 +66,7 @@ class BackendController extends Controller
                         'status' => 0,
                     ];
    
-                    Emi::insert($emiDetails);
+                    //Emi::insert($emiDetails);
                 }
                 
                 $res = Emi::selectRaw('(remaining_amount+emi_amount+rate_of_interest) as outstanding')->where('application_id',$payload['loan_application_id'])->where('status',0)->orderby('id','ASC')->get()->first();
@@ -99,11 +81,14 @@ class BackendController extends Controller
                     'outstanding_amount' => number_format($outstanding,2, '.',''),
                     'monthly_emi_amount' => number_format($emi,2, '.','')
                 ];
+                $pdfName = storage_path("app/public/loans/".$loanApplication->id.'_details_'.date('Ymdhis').'.pdf');
+                $pdf = PDF::loadView('emails.loan_details_attchment', $data);
+                $pdf->save($pdfName);
             } else {
                 $data['reject_reason'] = $loanApplication->reject_reason;
             }
             
-            Mail::to($loanApplication->user->email,$loanApplication->user->name)->queue(new LoanDetails($data));
+            Mail::to($loanApplication->user->email,$loanApplication->user->name)->queue(new LoanDetails($data, $pdfName));
 
             $response = [
                 'status' => true,

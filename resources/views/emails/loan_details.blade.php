@@ -9,31 +9,7 @@
     <p>Hello {{$name}},</p>
     @if(count($emis))
     <p>Congrats!!!</p> 
-    <p>Your loan request has been approved, following are the EMI details:</p>
-    <table border="1" cellspacing="2" cellpadding="10">
-        <thead>
-            <tr>
-                <th>Creating Date</th>
-                <th>Finish Date</th>
-                <th>No. of EMIs</th>
-                <th>Loan Amount</th>
-                <th>Pending EMIs</th>
-                <th>Outstanding Amount</th>
-                <th>Monthly EMI Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>{{$emis['creation_date']}}</td>
-                <td>{{$emis['finish_date']}}</td>
-                <td>{{$emis['total_emis']}}</td>
-                <td>{{$emis['loan_amount']}}</td>
-                <td>{{$emis['pending_emis']}}</td>
-                <td>{{$emis['outstanding_amount']}}</td>
-                <td>{{$emis['monthly_emi_amount']}}</td>
-            </tr>
-        </tbody>
-    </table>
+    <p>Your loan request has been approved, following are the EMI details. Please find the details in the attachment.</p>
     @else
     <p>Sorry to inform you that your loan request has been rejected due to reason : {{$reject_reason}}</p>
     @endif
